@@ -1,17 +1,21 @@
 module GraphQL::Batch
   class Loader
-    def self.for(*group_args)
-      loader_key = loader_key_for(*group_args)
-      executor = Executor.current
+    @@semaphore = Mutex.new
 
-      unless executor
-        raise GraphQL::Batch::NoExecutorError, 'Cannot create loader without'\
+    def self.for(*group_args)
+      @@semaphore.synchronize do
+        loader_key = loader_key_for(*group_args)
+        executor = Executor.current
+
+        unless executor
+          raise GraphQL::Batch::NoExecutorError, 'Cannot create loader without'\
           ' an Executor. Wrap the call to `for` with `GraphQL::Batch.batch`'\
           ' or use `GraphQL::Batch::Setup` as a query instrumenter if'\
           ' using with `graphql-ruby`'
-      end
+        end
 
-      executor.loader(loader_key) { new(*group_args) }
+        executor.loader(loader_key) { new(*group_args) }
+      end
     end
 
     def self.loader_key_for(*group_args)
